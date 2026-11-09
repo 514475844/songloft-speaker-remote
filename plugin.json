@@ -1,0 +1,18 @@
+{
+  "name": "speaker-remote",
+  "version": "0.1.0",
+  "description": "小爱音箱专用遥控器：极简大按钮界面，控制家里小爱音箱播放 Songloft 音乐。点歌单/单曲推送到音箱，支持播放暂停、进度拖动、倍速、音量、播放模式、亮暗主题、全屏自适应，专为老旧手机常驻遥控设计。需先安装并启用官方「智能音箱」插件。",
+  "author": "514475844",
+  "homepage": "https://github.com/514475844/songloft-speaker-remote",
+  "license": "Apache-2.0",
+  "entryPath": "speaker-remote",
+  "main": "main.js",
+  "minHostVersion": "2.6.3",
+  "permissions": [
+    "songs.read",
+    "playlists.read"
+  ],
+  "staticHash": false,
+  "entryHash": "c06b27c77268a7624026af2aa90caaecc61144c4f11746254f5b3c137960a0fb",
+  "zipHash": "e8f2ea6346e4662b9af71646dbe56b4bbb506088454e7ca6d3bb640f136fb5cc"
+}

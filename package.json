@@ -1,0 +1,20 @@
+{
+  "name": "songloft-speaker-remote",
+  "version": "0.1.0",
+  "description": "小爱音箱专用遥控器 Songloft 插件",
+  "private": true,
+  "main": "src/main.ts",
+  "scripts": {
+    "build": "songloft-plugin build",
+    "dev": "songloft-plugin dev",
+    "validate": "songloft-plugin validate",
+    "publish:release": "songloft-plugin publish"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "Apache-2.0",
+  "dependencies": {
+    "@songloft/plugin-builder": "^2.18.0",
+    "@songloft/plugin-sdk": "^2.18.0"
+  }
+}
