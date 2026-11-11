@@ -512,6 +512,10 @@ async function boot(){
     const d = await fetch('/api/v1/jsplugin/speaker-remote/auth/token').then(r=>r.json()).catch(()=>({}));
     if(await tryEnter(d.token||d.access_token)) return;
   }catch(e){}
+  try{
+    const d = await fetch('/auto-token').then(r=>r.json()).catch(()=>({}));
+    if(await tryEnter(d.token)) return;
+  }catch(e){}
   if(TOKEN){ enterRemote().catch(()=>{ $('#login').classList.remove('hidden'); }); }
   else { $('#login').classList.remove('hidden'); }
 }

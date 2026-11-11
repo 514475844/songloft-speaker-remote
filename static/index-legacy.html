@@ -421,8 +421,8 @@ function startMain(){
   showMain();
   loadDevices();
 }
-/* 老设备上也尝试宿主注入 token（插件 webview 场景），失败再手动登录 */
-(function tryInjected(){
+/* 探测顺序：①宿主注入 ②反代自动登录 /auto-token ③缓存token ④手动登录 */
+(function boot(){
   var tk='';
   try{
     var sp = window.SongloftPlugin;
@@ -434,7 +434,25 @@ function startMain(){
     startMain();
     return;
   }
-  if(TOKEN){ startMain(); } else { showLogin(); }
+  try{
+    var x=new XMLHttpRequest();
+    x.open('GET','/auto-token',true);
+    x.onreadystatechange=function(){
+      if(x.readyState!==4) return;
+      var d={};
+      try{ d=JSON.parse(x.responseText); }catch(e){}
+      if(x.status===200 && d.token && d.token.length>10){
+        TOKEN=d.token;
+        try{ LS.setItem('sr_token',TOKEN); }catch(e){}
+        startMain();
+        return;
+      }
+      if(TOKEN){ startMain(); } else { showLogin(); }
+    };
+    x.send(null);
+  }catch(e){
+    if(TOKEN){ startMain(); } else { showLogin(); }
+  }
 })();
 })();
 </script>
