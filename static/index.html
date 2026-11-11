@@ -5,6 +5,16 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>小爱音箱遥控器</title>
+<script>
+/* 老设备（ES5-only 内核）自动跳兼容版；探测代码本身必须是纯 ES5 */
+(function(){
+  var ok=false;
+  try{
+    ok = !!(new Function("try{return (window.fetch&&window.Promise&&'a'.startsWith&&Array.prototype.findIndex)?1:0}catch(e){return 0}")());
+  }catch(e){ ok=false; }
+  if(!ok){ try{ window.location.replace('index-legacy.html'); }catch(e){ window.location.href='index-legacy.html'; } }
+})();
+</script>
 <style>
   :root{
     --bg:#0f1115; --card:#1a1d24; --fg:#f2f4f8; --sub:#8b93a3;

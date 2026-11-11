@@ -1,0 +1,442 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
+<title>小爱音箱遥控器（兼容版）</title>
+<style>
+  *{box-sizing:border-box;-webkit-box-sizing:border-box}
+  body{margin:0;padding:0 0 20px 0;font-size:15px;max-width:560px}
+  body.dark{background:#0f1115;color:#f2f4f8}
+  body.light{background:#f4f5f7;color:#1a1d24}
+  body.dark .card{background:#1a1d24;border:1px solid #262b34}
+  body.light .card{background:#ffffff;border:1px solid #e2e5ea}
+  .card{margin:12px 12px 0 12px;padding:14px;border-radius:12px}
+  body.dark .sub{color:#8b93a3}
+  body.light .sub{color:#6a7280}
+  h1{font-size:17px;margin:0;font-weight:bold}
+  .topbar{margin:12px 12px 0 12px;padding:10px 14px}
+  .topbar table{width:100%}
+  button,input,select{
+    font-size:15px;font-family:inherit;
+    padding:10px 12px;border-radius:10px;
+    border:1px solid #262b34;outline:none}
+  body.dark button{background:#232833;color:#f2f4f8}
+  body.dark input,body.dark select{background:#11141a;color:#f2f4f8;border-color:#262b34}
+  body.light button{background:#eceef2;color:#1a1d24;border-color:#d7dade}
+  body.light input,body.light select{background:#ffffff;color:#1a1d24;border-color:#d7dade}
+  button{cursor:pointer}
+  button.main{background:#ec4899;border-color:#ec4899;color:#ffffff;font-weight:bold;font-size:17px}
+  .row{margin-top:10px}
+  .row3 button{width:31%;padding:11px 0;margin-right:2%}
+  .row3 button.last{margin-right:0}
+  #playBtn{width:100%;font-size:19px;font-weight:bold;padding:14px 0}
+  #barBg{height:16px;border-radius:8px;position:relative;margin-top:10px;overflow:hidden}
+  body.dark #barBg{background:#262b34}
+  body.light #barBg{background:#dfe3e9}
+  #barFill{height:100%;width:0;background:#ec4899}
+  #timeText{font-size:12px;margin-top:4px}
+  .plitem{padding:10px 8px;border-bottom:1px solid #262b34;overflow:hidden}
+  body.light .plitem{border-bottom-color:#e2e5ea}
+  .plitem .nm{font-weight:bold}
+  .plitem .go{float:right}
+  .song{padding:8px 8px 8px 20px;border-bottom:1px dotted #262b34;overflow:hidden}
+  body.light .song{border-bottom-color:#e2e5ea}
+  .err{color:#ff5c6c;font-size:13px}
+  .center{text-align:center}
+</style>
+</head>
+<body class="dark">
+
+<div class="topbar card">
+  <table><tr>
+    <td><h1>小爱音箱遥控器</h1></td>
+    <td align="right"><button id="themeBtn" style="padding:8px 12px">主题</button></td>
+  </tr></table>
+</div>
+
+<div id="login" class="card">
+  <div class="row"><input id="user" type="text" placeholder="Songloft 账号" style="width:100%"></div>
+  <div class="row"><input id="pass" type="password" placeholder="密码" style="width:100%"></div>
+  <div class="row err" id="loginErr">&nbsp;</div>
+  <div class="row"><button id="loginBtn" class="main" style="width:100%">登录</button></div>
+</div>
+
+<div id="main" style="display:none">
+  <div class="card">
+    <table style="width:100%"><tr>
+      <td><select id="dev" style="width:100%"></select></td>
+      <td style="width:60px"><button id="devRefresh" style="width:100%">刷新</button></td>
+    </tr></table>
+  </div>
+
+  <div class="card">
+    <div id="npTitle" style="font-weight:bold;font-size:16px">未在播放</div>
+    <div id="npArtist" class="sub" style="font-size:13px;margin-top:3px">&nbsp;</div>
+    <div class="row"><button id="playBtn" class="main">▶ 播放</button></div>
+    <div id="barBg"><div id="barFill"></div></div>
+    <div id="timeText" class="sub">0:00 / 0:00</div>
+    <div class="row row3">
+      <button id="volMinus">音量 −</button>
+      <button id="volPlus">音量 +</button>
+      <button id="modeBtn" class="last">模式:顺序</button>
+    </div>
+    <div class="row row3">
+      <button id="spdBtn" style="width:48%">倍速:1</button>
+      <button id="volBtn" class="last" style="width:50%">音量 --</button>
+    </div>
+  </div>
+
+  <div class="card">
+    <div style="font-weight:bold;margin-bottom:6px">歌单（点开 → 点歌推到音箱）</div>
+    <div id="plList" class="sub">加载中…</div>
+  </div>
+</div>
+
+<script>
+(function(){
+"use strict";
+/* ===== 兼容 ES5：无箭头/模板字符串/可选链/Promise/fetch ===== */
+var LS = (function(){
+  try{ if(window.localStorage){ return window.localStorage; } }catch(e){}
+  var m={}; return {getItem:function(k){return m[k];},setItem:function(k,v){m[k]=v;},removeItem:function(k){delete m[k];}};
+})();
+function $(id){ return document.getElementById(id); }
+function esc(s){ return String(s==null?'':s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/\"/g,'&quot;'); }
+
+var BASE = window.location.origin || '';
+var TOKEN = LS.getItem('sr_token') || '';
+var DEVICES = [], CUR = null;
+var PLAY_MODES = ['order','loop','random','single'];
+var MODE_LABEL = {order:'顺序',loop:'循环',random:'随机',single:'单曲'};
+var SPEEDS = [1,1.25,1.5,2,0.75];
+var curModeIdx = 0, curSpdIdx = 0;
+var curPlaylistId = null;
+var pollTimer = null;
+
+/* ===== XHR ===== */
+function xhr(method, path, body, cb){
+  try{
+    var x = new XMLHttpRequest();
+    var url = BASE + path + (path.indexOf('?')>=0?'&':'?') + 'access_token=' + encodeURIComponent(TOKEN);
+    x.open(method, url, true);
+    x.setRequestHeader('Content-Type','application/json');
+    if(TOKEN){ x.setRequestHeader('Authorization','Bearer '+TOKEN); }
+    x.onreadystatechange = function(){
+      if(x.readyState!==4) return;
+      if(x.status===401){ showLogin(); if(cb) cb({__noauth__:true},401); return; }
+      var d = null;
+      try{ d = JSON.parse(x.responseText); }catch(e){ d = {__raw__:x.responseText}; }
+      if(cb) cb(d, x.status);
+    };
+    x.send(body?JSON.stringify(body):null);
+  }catch(e){ if(cb) cb(null,0); }
+}
+function apiPost(path, body, cb){ xhr('POST', path, body, cb); }
+function apiGet(path, cb){ xhr('GET', path, null, cb); }
+
+/* ===== 主题 ===== */
+function applyTheme(t){
+  document.body.className = t==='light' ? 'light' : 'dark';
+  try{ LS.setItem('sr_theme', t); }catch(e){}
+}
+$('themeBtn').onclick = function(){
+  applyTheme(document.body.className==='dark' ? 'light' : 'dark');
+};
+try{ applyTheme(LS.getItem('sr_theme')||'dark'); }catch(e){ applyTheme('dark'); }
+
+/* ===== 登录态 ===== */
+function showLogin(){
+  if(pollTimer){ clearInterval(pollTimer); pollTimer=null; }
+  TOKEN=''; try{ LS.removeItem('sr_token'); }catch(e){}
+  $('login').style.display='block';
+  $('main').style.display='none';
+}
+function showMain(){
+  $('login').style.display='none';
+  $('main').style.display='block';
+}
+function doLogin(){
+  var u=$('user').value.replace(/^\s+|\s+$/g,''), p=$('pass').value;
+  $('loginErr').innerHTML='&nbsp;';
+  try{
+    var x=new XMLHttpRequest();
+    x.open('POST', BASE+'/api/v1/auth/login', true);
+    x.setRequestHeader('Content-Type','application/json');
+    x.onreadystatechange=function(){
+      if(x.readyState!==4) return;
+      var d={};
+      try{ d=JSON.parse(x.responseText); }catch(e){}
+      var tk = d.token||d.access_token||d.jwt||'';
+      if(d.data){ tk = tk||d.data.token||d.data.access_token||''; }
+      if(x.status===200 && tk){
+        TOKEN=tk; try{ LS.setItem('sr_token',tk); }catch(e){}
+        startMain();
+      }else{
+        $('loginErr').textContent = (d.error||d.message||'登录失败');
+      }
+    };
+    x.send(JSON.stringify({username:u,password:p}));
+  }catch(e){ $('loginErr').textContent='网络错误：'+e; }
+}
+$('loginBtn').onclick = doLogin;
+
+/* ===== 设备 ===== */
+function pickDevices(d){
+  var out=[];
+  var accs = d && (d.data||d.accounts||d.devices||d);
+  if(accs && accs.length===undefined) accs=[accs];
+  if(accs){
+    for(var i=0;i<accs.length;i++){
+      var acc=accs[i];
+      var devs = acc.devices||[];
+      for(var j=0;j<devs.length;j++){
+        var dv=devs[j];
+        if(dv.type==='miot' || dv.presence==='online' || true){
+          out.push({account_id:acc.account_id, id:dv.deviceID,
+            name:dv.device_name||dv.name||dv.deviceID, presence:dv.presence});
+        }
+      }
+    }
+  }
+  return out;
+}
+function loadDevices(){
+  apiGet('/api/v1/jsplugin/miot/mina/devices', function(d){
+    DEVICES = pickDevices(d);
+    var sel=$('dev'), html='';
+    for(var i=0;i<DEVICES.length;i++){
+      var dv=DEVICES[i];
+      html += '<option value="'+i+'">'+esc(dv.name)+(dv.presence&&dv.presence!=='online'?'（离线）':'')+'</option>';
+    }
+    if(!html){ html='<option value="">（无可用设备）</option>'; }
+    sel.innerHTML = html;
+    CUR = DEVICES.length ? DEVICES[0] : null;
+    if(CUR){ loadPlaylists(); startPoll(); }
+  });
+}
+$('dev').onchange = function(){
+  var i = parseInt($('dev').value,10);
+  CUR = DEVICES[i]||null;
+};
+$('devRefresh').onclick = loadDevices;
+
+/* ===== 状态轮询 ===== */
+function fmt(sec){
+  sec = Math.max(0, Math.floor(sec||0));
+  var m = Math.floor(sec/60), s = sec%60;
+  return m+':'+(s<10?'0':'')+s;
+}
+function paintStatus(s){
+  if(!s) return;
+  var playing = (s.state==='playing');
+  $('playBtn').textContent = playing ? '⏸ 暂停' : '▶ 播放';
+  var song = s.current_song||{};
+  $('npTitle').textContent = song.title || (playing?'—':'未在播放');
+  var ar = [];
+  if(song.artist) ar.push(song.artist);
+  if(song.album) ar.push(song.album);
+  $('npArtist').textContent = ar.join(' · ');
+  var pos = parseFloat(s.position)||0, dur = parseFloat(s.duration)||0;
+  var pct = dur>0 ? Math.min(100, pos/dur*100) : 0;
+  $('barFill').style.width = pct+'%';
+  $('timeText').textContent = fmt(pos)+' / '+fmt(dur);
+  if(s.volume!=null){ $('volBtn').textContent='音量 '+s.volume; }
+  if(s.play_mode && MODE_LABEL[s.play_mode]){
+    for(var i=0;i<PLAY_MODES.length;i++){ if(PLAY_MODES[i]===s.play_mode) curModeIdx=i; }
+    $('modeBtn').textContent='模式:'+MODE_LABEL[s.play_mode];
+  }
+  if(s.speed!=null){
+    var sp=parseFloat(s.speed);
+    for(var k=0;k<SPEEDS.length;k++){ if(Math.abs(SPEEDS[k]-sp)<0.01) curSpdIdx=k; }
+    $('spdBtn').textContent='倍速:'+sp;
+  }
+}
+function poll(){
+  if(!CUR) return;
+  apiGet('/api/v1/jsplugin/miot/player/status?account_id='+encodeURIComponent(CUR.account_id)+'&device_id='+encodeURIComponent(CUR.id), function(d){
+    if(d && d.__noauth__) return;
+    paintStatus(d && d.data ? d.data : d);
+  });
+}
+function startPoll(){
+  if(pollTimer) clearInterval(pollTimer);
+  poll();
+  pollTimer = setInterval(poll, 3000);
+}
+
+/* ===== 控制 ===== */
+function requireCur(){
+  if(!CUR){ alert('请先选择设备'); return false; }
+  return true;
+}
+$('playBtn').onclick = function(){
+  if(!requireCur()) return;
+  apiPost('/api/v1/jsplugin/miot/player/toggle?account_id='+encodeURIComponent(CUR.account_id)+'&device_id='+encodeURIComponent(CUR.id), {}, function(d){
+    if(d && d.__noauth__) return;
+    setTimeout(poll, 500);
+  });
+};
+$('volMinus').onclick = function(){ setVol(-5); };
+$('volPlus').onclick = function(){ setVol(5); };
+function setVol(delta){
+  if(!requireCur()) return;
+  apiPost('/api/v1/jsplugin/miot/mina/volume', {account_id:CUR.account_id, device_id:CUR.id, volume:delta}, function(d){
+    if(d && d.__noauth__) return;
+    setTimeout(poll, 500);
+  });
+}
+$('modeBtn').onclick = function(){
+  if(!requireCur()) return;
+  curModeIdx = (curModeIdx+1) % PLAY_MODES.length;
+  var m = PLAY_MODES[curModeIdx];
+  $('modeBtn').textContent = '模式:'+MODE_LABEL[m];
+  apiPost('/api/v1/jsplugin/miot/player/mode?account_id='+encodeURIComponent(CUR.account_id)+'&device_id='+encodeURIComponent(CUR.id), {play_mode:m}, function(d){ if(d&&d.__noauth__)return; setTimeout(poll,500); });
+};
+$('spdBtn').onclick = function(){
+  if(!requireCur()) return;
+  curSpdIdx = (curSpdIdx+1) % SPEEDS.length;
+  var s = SPEEDS[curSpdIdx];
+  $('spdBtn').textContent = '倍速:'+s;
+  apiPost('/api/v1/jsplugin/miot/player/speed', {speed:s}, function(d){ if(d&&d.__noauth__)return; setTimeout(poll,500); });
+};
+
+/* 进度条点击 seek */
+$('barBg').onclick = function(ev){
+  if(!CUR) return;
+  var bg = $('barBg');
+  var rect = bg.getBoundingClientRect ? bg.getBoundingClientRect() : {left:0,width:1};
+  var x = (ev.clientX!=null?ev.clientX:0) - rect.left;
+  var ratio = Math.max(0, Math.min(1, x/(rect.width||1)));
+  var durTxt = $('timeText').textContent;
+  var parts = durTxt.split('/');
+  var durSec = 0;
+  if(parts.length===2){
+    var seg = parts[1].split(':');
+    if(seg.length===2){ durSec = (parseInt(seg[0],10)||0)*60 + (parseInt(seg[1],10)||0); }
+  }
+  if(durSec>0){
+    var target = Math.floor(ratio*durSec);
+    apiPost('/api/v1/jsplugin/miot/player/seek', {account_id:CUR.account_id, device_id:CUR.id, position:target}, function(d){ if(d&&d.__noauth__)return; setTimeout(poll,500); });
+  }
+};
+
+/* ===== 歌单 ===== */
+function pickList(d){
+  if(d && d.__noauth__) return [];
+  if(d && d.length!==undefined && d.push) return d;
+  if(d && d.data) return pickList(d.data);
+  if(d && d.playlists) return d.playlists;
+  if(d && d.items) return d.items;
+  if(d && d.list) return d.list;
+  if(d && d.result) return d.result;
+  return [];
+}
+function plName(p){ return p.name||p.title||(''+(p.id||'')); }
+function plCount(p){ return (p.song_count!=null?p.song_count:(p.count!=null?p.count:'')); }
+function loadPlaylists(){
+  var box=$('plList');
+  box.innerHTML='<span class="sub">加载中…</span>';
+  apiGet('/api/v1/playlists', function(d){
+    if(d && d.__noauth__) return;
+    var list = pickList(d);
+    if(!list.length){ box.innerHTML='<span class="sub">没有歌单（或字段解析失败）</span>'; return; }
+    var html='';
+    for(var i=0;i<list.length;i++){
+      var p=list[i];
+      html += '<div class="plitem" data-pid="'+esc(p.id)+'" data-idx="'+i+'">'
+        + '<span class="nm">'+esc(plName(p))+'</span> <span class="sub">'+esc(plCount(p))+'</span>'
+        + '<span class="go"><button class="allbtn" data-pid="'+esc(p.id)+'">▶全碟</button></span>'
+        + '</div><div class="songs" id="songs_'+i+'" style="display:none"></div>';
+    }
+    box.innerHTML=html;
+    var items = box.getElementsByTagName('div');
+    for(var k=0;k<items.length;k++){
+      (function(el){
+        var cls = el.className||'';
+        if(cls.indexOf('plitem')>=0){
+          el.onclick = function(ev){
+            var t = ev.target||ev.srcElement;
+            if(t && t.className && String(t.className).indexOf('allbtn')>=0) return;
+            toggleSongs(el);
+          };
+        }else if(cls.indexOf('allbtn')>=0){
+          el.onclick = function(ev){
+            if(ev && ev.stopPropagation) ev.stopPropagation();
+            playPlaylist(el.getAttribute('data-pid'), 0);
+          };
+        }
+      })(items[k]);
+    }
+  });
+}
+function toggleSongs(el){
+  var idx = el.getAttribute('data-idx');
+  var box = $('songs_'+idx);
+  if(!box) return;
+  if(box.style.display!=='none'){ box.style.display='none'; return; }
+  box.style.display='block';
+  if(box.getAttribute('data-loaded')==='1') return;
+  box.innerHTML='<span class="sub">加载曲目…</span>';
+  var pid = el.getAttribute('data-pid');
+  apiGet('/api/v1/playlists/'+encodeURIComponent(pid)+'/songs', function(d){
+    if(d && d.__noauth__) return;
+    var songs = pickList(d);
+    if(!songs.length){ box.innerHTML='<span class="sub">（没有曲目或解析失败）</span>'; return; }
+    var html='';
+    for(var i=0;i<songs.length;i++){
+      var s=songs[i];
+      html += '<div class="song" data-pid="'+esc(pid)+'" data-idx="'+i+'">'
+        + (i+1)+'. '+esc(s.title||s.name||('曲目'+(i+1)))
+        + (s.artist?' <span class="sub">- '+esc(s.artist)+'</span>':'')
+        + '</div>';
+    }
+    box.innerHTML=html;
+    box.setAttribute('data-loaded','1');
+    var rows = box.getElementsByTagName('div');
+    for(var k=0;k<rows.length;k++){
+      (function(row){
+        row.onclick = function(){
+          playPlaylist(row.getAttribute('data-pid'), parseInt(row.getAttribute('data-idx'),10)||0);
+        };
+      })(rows[k]);
+    }
+  });
+}
+function playPlaylist(pid, index){
+  if(!requireCur()) return;
+  curPlaylistId = pid;
+  apiPost('/api/v1/jsplugin/miot/player/play', {
+    account_id:CUR.account_id, device_id:CUR.id,
+    playlist_id:pid, start_index:index||0, play_mode:PLAY_MODES[curModeIdx]
+  }, function(d){
+    if(d && d.__noauth__) return;
+    $('npTitle').textContent = '已发送播放指令';
+    setTimeout(poll, 800);
+  });
+}
+
+/* ===== 启动 ===== */
+function startMain(){
+  showMain();
+  loadDevices();
+}
+/* 老设备上也尝试宿主注入 token（插件 webview 场景），失败再手动登录 */
+(function tryInjected(){
+  var tk='';
+  try{
+    var sp = window.SongloftPlugin;
+    if(sp && typeof sp.getAuthToken==='function'){ tk = sp.getAuthToken(); }
+  }catch(e){}
+  if(tk && typeof tk==='string' && tk.length>10){
+    TOKEN=tk;
+    try{ LS.setItem('sr_token',tk); }catch(e){}
+    startMain();
+    return;
+  }
+  if(TOKEN){ startMain(); } else { showLogin(); }
+})();
+})();
+</script>
+</body>
+</html>
