@@ -21,12 +21,14 @@
     --acc:#ec4899; --acc2:#2bd4a4; --danger:#ff5c6c;
     --line:#262b34; --input:#11141a;
     --btn-bg:#232833; --btn-fg:#f2f4f8; --bar:#262b34;
+    color-scheme:dark;
   }
   :root[data-theme="light"]{
     --bg:#f4f6f9; --card:#ffffff; --fg:#1a1d24; --sub:#6b7280;
     --acc:#ec4899; --acc2:#13a982; --danger:#e23a4a;
     --line:#e4e8ee; --input:#ffffff;
     --btn-bg:#eceff3; --btn-fg:#1a1d24; --bar:#e4e8ee;
+    color-scheme:light;
   }
   *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
   html,body{margin:0;background:var(--bg);color:var(--fg);
@@ -52,6 +54,7 @@
   label.lbl{font-size:13px;color:var(--sub);display:block;margin:0 2px 8px}
   select,input[type=text],input[type=password]{width:100%;background:var(--input);color:var(--fg);
     border:1px solid var(--line);border-radius:10px;padding:12px;font-size:16px}
+  select option{background:var(--input);color:var(--fg)}
 
   /* 歌单 */
   .plgroup{background:var(--card);border:1px solid var(--line);border-radius:14px;margin-bottom:10px;overflow:hidden;transition:background .25s,border-color .25s}
