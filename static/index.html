@@ -203,6 +203,7 @@ let SPEEDS = [1,1.25,1.5,2,0.75];
 
 function api(path, opts={}){
   opts.headers = Object.assign({'Content-Type':'application/json'}, opts.headers||{});
+  if(TOKEN) opts.headers['Authorization'] = 'Bearer ' + TOKEN;
   const sep = path.includes('?') ? '&' : '?';
   return fetch(BASE + path + sep + 'access_token=' + encodeURIComponent(TOKEN), opts).then(r=>{
     if(r.status===401) throw new Error('NOAUTH');
@@ -476,16 +477,30 @@ function logout(){ LS.removeItem('sr_token'); location.reload(); }
 /* ---------- 启动 ---------- */
 $('#base').value = BASE;
 async function boot(){
-  // 插件环境：宿主注入 window.getAccessToken() → 免登录直接进
+  // 插件环境免登录，四级探测：
+  // ① 宿主注入 window.SongloftPlugin.getAuthToken()（miot-helper 同款）
+  // ② 旧注入 window.getAccessToken()
+  // ③ 插件后端 /auth/token（songloft.plugin.getToken()）
+  // ④ 本地缓存的 token；都失败才显示手动登录（反代容器场景）
+  const tryEnter = async (tk)=>{
+    if(!tk || typeof tk!=='string' || tk.length<10) return false;
+    TOKEN = tk; BASE = window.location.origin;
+    LS.setItem('sr_token', TOKEN);
+    try{ await enterRemote(); return true; }catch(e){ return false; }
+  };
   try{
-    if(typeof window.getAccessToken === 'function'){
-      let tk = window.getAccessToken();
-      if(tk && typeof tk.then === 'function') tk = await tk;
-      if(tk && typeof tk === 'string' && tk.length > 10){
-        TOKEN = tk; BASE = window.location.origin;
-        try{ await enterRemote(); return; }catch(e){}
-      }
-    }
+    let tk = window.SongloftPlugin?.getAuthToken?.();
+    if(tk && typeof tk.then==='function') tk = await tk;
+    if(await tryEnter(tk)) return;
+  }catch(e){}
+  try{
+    let tk = window.getAccessToken?.();
+    if(tk && typeof tk.then==='function') tk = await tk;
+    if(await tryEnter(tk)) return;
+  }catch(e){}
+  try{
+    const d = await fetch('/api/v1/jsplugin/speaker-remote/auth/token').then(r=>r.json()).catch(()=>({}));
+    if(await tryEnter(d.token||d.access_token)) return;
   }catch(e){}
   if(TOKEN){ enterRemote().catch(()=>{ $('#login').classList.remove('hidden'); }); }
   else { $('#login').classList.remove('hidden'); }
