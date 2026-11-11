@@ -323,6 +323,13 @@ $('barBg').onclick = function(ev){
 };
 
 /* ===== 歌单 ===== */
+function pickVal(o, keys){
+  for(var i=0;i<keys.length;i++){
+    var k=keys[i];
+    if(o && o[k]!=null && o[k]!=='') return o[k];
+  }
+  return undefined;
+}
 function pickList(d){
   if(d && d.__noauth__) return [];
   if(d && d.length!==undefined && d.push) return d;
@@ -331,10 +338,37 @@ function pickList(d){
   if(d && d.items) return d.items;
   if(d && d.list) return d.list;
   if(d && d.result) return d.result;
+  if(d && d.songs) return d.songs;
+  if(d){ for(var k in d){ if(d[k] && d[k].push && d[k].length!==undefined) return d[k]; } }
   return [];
 }
-function plName(p){ return p.name||p.title||(''+(p.id||'')); }
-function plCount(p){ return (p.song_count!=null?p.song_count:(p.count!=null?p.count:'')); }
+function pickSongs(d){
+  if(d && d.__noauth__) return [];
+  if(d && d.length!==undefined && d.push) return d;
+  if(d && d.data) return pickSongs(d.data);
+  if(d && d.songs) return d.songs;
+  if(d && d.items) return d.items;
+  if(d && d.list) return d.list;
+  if(d){ for(var k in d){ if(d[k] && d[k].push && d[k].length!==undefined) return d[k]; } }
+  return [];
+}
+function plId(p){ return pickVal(p,['id','Id','ID','playlist_id','pid']); }
+function plName(p){ return pickVal(p,['name','title','Name','Title']) || ('歌单'+(p&&p.id!=null?p.id:'?')); }
+function plCount(p){ return pickVal(p,['song_count','count','songCount','total']); }
+/* 分页拉全歌单曲目（对齐主版 fetchAllSongs：limit 500/次，guard 40，total 停止） */
+function fetchAllSongs(pid, cb, all, offset, guard){
+  all = all||[]; offset = offset||0; guard = guard||0;
+  apiGet('/api/v1/playlists/'+encodeURIComponent(pid)+'/songs?limit=500&offset='+offset, function(d){
+    if(d && d.__noauth__){ cb([]); return; }
+    var chunk = pickSongs(d);
+    for(var i=0;i<chunk.length;i++) all.push(chunk[i]);
+    if(guard>=40 || chunk.length<500){ cb(all); return; }
+    var total = pickVal(d,['total','count','total_count']);
+    if(d && d.data && !total) total = pickVal(d.data,['total','count']);
+    if(total && all.length>=total){ cb(all); return; }
+    fetchAllSongs(pid, cb, all, offset+500, guard+1);
+  });
+}
 function loadPlaylists(){
   var box=$('plList');
   box.innerHTML='<span class="sub">加载中…</span>';
@@ -345,9 +379,10 @@ function loadPlaylists(){
     var html='';
     for(var i=0;i<list.length;i++){
       var p=list[i];
-      html += '<div class="plitem" data-pid="'+esc(p.id)+'" data-idx="'+i+'">'
+      var pid=plId(p);
+      html += '<div class="plitem" data-pid="'+esc(pid)+'" data-idx="'+i+'">'
         + '<span class="nm">'+esc(plName(p))+'</span> <span class="sub">'+esc(plCount(p))+'</span>'
-        + '<span class="go"><button class="allbtn" data-pid="'+esc(p.id)+'">▶全碟</button></span>'
+        + '<span class="go"><button class="allbtn" data-pid="'+esc(pid)+'">▶全碟</button></span>'
         + '</div><div class="songs" id="songs_'+i+'" style="display:none"></div>';
     }
     box.innerHTML=html;
@@ -380,16 +415,16 @@ function toggleSongs(el){
   if(box.getAttribute('data-loaded')==='1') return;
   box.innerHTML='<span class="sub">加载曲目…</span>';
   var pid = el.getAttribute('data-pid');
-  apiGet('/api/v1/playlists/'+encodeURIComponent(pid)+'/songs', function(d){
-    if(d && d.__noauth__) return;
-    var songs = pickList(d);
+  fetchAllSongs(pid, function(songs){
     if(!songs.length){ box.innerHTML='<span class="sub">（没有曲目或解析失败）</span>'; return; }
     var html='';
     for(var i=0;i<songs.length;i++){
       var s=songs[i];
+      var t = pickVal(s,['title','name','Title','Name','song']) || ('曲目'+(i+1));
+      var ar = pickVal(s,['artist','singer','Artist','artists_name']);
       html += '<div class="song" data-pid="'+esc(pid)+'" data-idx="'+i+'">'
-        + (i+1)+'. '+esc(s.title||s.name||('曲目'+(i+1)))
-        + (s.artist?' <span class="sub">- '+esc(s.artist)+'</span>':'')
+        + (i+1)+'. '+esc(t)
+        + (ar?' <span class="sub">- '+esc(ar)+'</span>':'')
         + '</div>';
     }
     box.innerHTML=html;
