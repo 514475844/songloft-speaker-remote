@@ -125,6 +125,7 @@
 <body>
 
 <!-- 登录页 -->
+<div id="bootTip" class="card" style="margin:18px;text-align:center;padding:24px">正在连接…</div>
 <div id="login" class="card hidden" style="margin:18px">
   <h1 style="font-size:20px;margin:4px 0 18px">🔐 登录 Songloft</h1>
   <label class="lbl">服务器</label>
@@ -486,12 +487,11 @@ function logout(){ LS.removeItem('sr_token'); location.reload(); }
 
 /* ---------- 启动 ---------- */
 $('#base').value = BASE;
+function bootTip(show){
+  const t = $('#bootTip');
+  if(t) t.classList.toggle('hidden', !show);
+}
 async function boot(){
-  // 插件环境免登录，四级探测：
-  // ① 宿主注入 window.SongloftPlugin.getAuthToken()（miot-helper 同款）
-  // ② 旧注入 window.getAccessToken()
-  // ③ 插件后端 /auth/token（songloft.plugin.getToken()）
-  // ④ 本地缓存的 token；都失败才显示手动登录（反代容器场景）
   const tryEnter = async (tk)=>{
     if(!tk || typeof tk!=='string' || tk.length<10) return false;
     TOKEN = tk; BASE = window.location.origin;
@@ -501,25 +501,34 @@ async function boot(){
   try{
     let tk = window.SongloftPlugin?.getAuthToken?.();
     if(tk && typeof tk.then==='function') tk = await tk;
-    if(await tryEnter(tk)) return;
+    if(await tryEnter(tk)){ bootTip(false); return; }
   }catch(e){}
   try{
     let tk = window.getAccessToken?.();
     if(tk && typeof tk.then==='function') tk = await tk;
-    if(await tryEnter(tk)) return;
+    if(await tryEnter(tk)){ bootTip(false); return; }
   }catch(e){}
   try{
     const d = await fetch('/api/v1/jsplugin/speaker-remote/auth/token').then(r=>r.json()).catch(()=>({}));
-    if(await tryEnter(d.token||d.access_token)) return;
+    if(await tryEnter(d.token||d.access_token)){ bootTip(false); return; }
   }catch(e){}
   try{
     const d = await fetch('/auto-token').then(r=>r.json()).catch(()=>({}));
-    if(await tryEnter(d.token)) return;
+    if(await tryEnter(d.token)){ bootTip(false); return; }
   }catch(e){}
+  bootTip(false);
   if(TOKEN){ enterRemote().catch(()=>{ $('#login').classList.remove('hidden'); }); }
   else { $('#login').classList.remove('hidden'); }
 }
-boot();
+/* 等宿主注入 SongloftPlugin 再探测（miot-helper 模式：惰性+重试，最多约 4s） */
+(function waitHost(){
+  bootTip(true);
+  let n=0;
+  const t=setInterval(()=>{
+    n++;
+    if(window.SongloftPlugin || n>=12){ clearInterval(t); boot(); }
+  },300);
+})();
 </script>
 </body>
 </html>

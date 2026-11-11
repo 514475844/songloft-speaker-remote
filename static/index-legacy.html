@@ -55,7 +55,8 @@
   </tr></table>
 </div>
 
-<div id="login" class="card">
+<div id="bootTip" class="card" style="text-align:center;padding:24px">正在连接…</div>
+<div id="login" class="card" style="display:none">
   <div class="row"><input id="user" type="text" placeholder="Songloft 账号" style="width:100%"></div>
   <div class="row"><input id="pass" type="password" placeholder="密码" style="width:100%"></div>
   <div class="row err" id="loginErr">&nbsp;</div>
@@ -418,11 +419,16 @@ function playPlaylist(pid, index){
 
 /* ===== 启动 ===== */
 function startMain(){
+  var bt=$('bootTip'); if(bt) bt.style.display='none';
   showMain();
   loadDevices();
 }
-/* 探测顺序：①宿主注入 ②反代自动登录 /auto-token ③缓存token ④手动登录 */
-(function boot(){
+function finishBoot(){
+  var bt=$('bootTip'); if(bt) bt.style.display='none';
+  if(TOKEN){ startMain(); } else { showLogin(); }
+}
+/* 探测顺序：①宿主注入（等注入完成，最多约4s重试）②反代 /auto-token ③缓存token ④手动登录 */
+(function bootLoop(n){
   var tk='';
   try{
     var sp = window.SongloftPlugin;
@@ -434,6 +440,7 @@ function startMain(){
     startMain();
     return;
   }
+  if(n<12){ setTimeout(function(){ bootLoop(n+1); },300); return; }
   try{
     var x=new XMLHttpRequest();
     x.open('GET','/auto-token',true);
@@ -447,13 +454,13 @@ function startMain(){
         startMain();
         return;
       }
-      if(TOKEN){ startMain(); } else { showLogin(); }
+      finishBoot();
     };
     x.send(null);
   }catch(e){
-    if(TOKEN){ startMain(); } else { showLogin(); }
+    finishBoot();
   }
-})();
+})(0);
 })();
 </script>
 </body>
