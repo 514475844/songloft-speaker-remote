@@ -6,13 +6,35 @@
 <meta name="apple-mobile-web-app-capable" content="yes">
 <title>小爱音箱遥控器</title>
 <script>
-/* 老设备（ES5-only 内核）自动跳兼容版；探测代码本身必须是纯 ES5 */
+/* 老设备（ES5-only 内核）自动载入兼容版。探测与注入代码本身必须纯 ES5。
+   不用 location 跳转：插件 SPA 回退会把任意子路径送回本页造成死循环；
+   改用 XHR 拉取兼容版源码并 document.write 注入，任何路由下都成立。 */
 (function(){
   var ok=false;
   try{
     ok = !!(new Function("try{return (window.fetch&&window.Promise&&'a'.startsWith&&Array.prototype.findIndex)?1:0}catch(e){return 0}")());
   }catch(e){ ok=false; }
-  if(!ok){ try{ window.location.replace('index-legacy.html'); }catch(e){ window.location.href='index-legacy.html'; } }
+  if(ok) return;
+  function loadLg(u){
+    try{
+      var x=new XMLHttpRequest();
+      x.open('GET',u,false);
+      x.overrideMimeType&&x.overrideMimeType('text/plain; charset=utf-8');
+      x.send(null);
+      if(x.status===200 && x.responseText && x.responseText.indexOf('DOCTYPE')>-1){
+        document.open('text/html','replace');
+        document.write(x.responseText);
+        document.close();
+        return true;
+      }
+    }catch(e){}
+    return false;
+  }
+  var p=window.location.pathname, cands=[];
+  if(/\/static\//.test(p)) cands.push('static/index-legacy.html');
+  else if(/\/jsplugin\//.test(p)) cands.push('static/index-legacy.html','index-legacy.html');
+  else cands.push('index-legacy.html','static/index-legacy.html');
+  for(var i=0;i<cands.length;i++){ if(loadLg(cands[i])) break; }
 })();
 </script>
 <style>
@@ -119,6 +141,21 @@
     .pb-cover{width:38px;height:38px;flex-basis:38px}
     .pb-play{width:44px;height:44px;font-size:20px}
     .content{padding-top:8px}
+  }
+
+  /* ===== 宽屏（平板/电脑）双栏自适应 ===== */
+  @media (min-width:820px){
+    body{max-width:1080px;padding-bottom:24px}
+    #remote{display:grid;grid-template-columns:minmax(0,1fr) 400px;gap:0 22px;align-items:start}
+    .header{grid-column:1 / -1}
+    .content{grid-column:1;padding-bottom:24px}
+    .player-bar{position:sticky;top:14px;grid-column:2;max-width:none;margin:0;
+      left:auto;right:auto;bottom:auto;border:1px solid var(--line);border-radius:16px;
+      padding:16px;box-shadow:0 6px 24px rgba(0,0,0,.12)}
+    .pb-cover{width:56px;height:56px;flex-basis:56px}
+    .pb-title{font-size:16px;white-space:normal}
+    .pb-ctrl button{flex:1 1 40%;font-size:14px}
+    .songs{max-height:46vh}
   }
 
   /* 登录页 */

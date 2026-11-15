@@ -6,7 +6,8 @@
 <title>小爱音箱遥控器（兼容版）</title>
 <style>
   *{box-sizing:border-box;-webkit-box-sizing:border-box}
-  body{margin:0;padding:0 0 20px 0;font-size:15px;max-width:560px}
+  body{margin:0;padding:0;font-size:15px}
+  #wrap{max-width:560px;margin:0 auto;padding:0 0 24px 0}
   body.dark{background:#0f1115;color:#f2f4f8}
   body.light{background:#f4f5f7;color:#1a1d24}
   body.dark .card{background:#1a1d24;border:1px solid #262b34}
@@ -30,9 +31,11 @@
   button{cursor:pointer}
   button.main{background:#ec4899;border-color:#ec4899;color:#ffffff;font-weight:bold;font-size:17px}
   .row{margin-top:10px}
-  .row3 button{width:31%;padding:11px 0;margin-right:2%}
-  .row3 button.last{margin-right:0}
+  .ctrl{width:100%;margin-top:10px;border-collapse:separate;border-spacing:6px 0;table-layout:fixed}
+  .ctrl td{width:25%}
+  .ctrl button{width:100%;padding:11px 0;font-size:14px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
   #playBtn{width:100%;font-size:19px;font-weight:bold;padding:14px 0}
+  #volBtn{font-weight:bold}
   #barBg{height:16px;border-radius:8px;position:relative;margin-top:10px;overflow:hidden}
   body.dark #barBg{background:#262b34}
   body.light #barBg{background:#dfe3e9}
@@ -46,9 +49,19 @@
   body.light .song{border-bottom-color:#e2e5ea}
   .err{color:#ff5c6c;font-size:13px}
   .center{text-align:center}
+  /* 宽屏（平板/电脑）双栏：播放区左、歌单右 */
+  @media (min-width:820px){
+    #wrap{max-width:1000px}
+    #main{overflow:hidden}
+    #nowCard{float:left;width:54%;margin:12px 0 0 12px}
+    #plCard{float:right;width:40%;margin:12px 12px 0 0}
+    #plList{max-height:60vh;overflow:auto}
+    .ctrl button{font-size:13px}
+  }
 </style>
 </head>
 <body class="dark">
+<div id="wrap">
 
 <div class="topbar card">
   <table><tr>
@@ -73,28 +86,26 @@
     </tr></table>
   </div>
 
-  <div class="card">
+  <div class="card" id="nowCard">
     <div id="npTitle" style="font-weight:bold;font-size:16px">未在播放</div>
     <div id="npArtist" class="sub" style="font-size:13px;margin-top:3px">&nbsp;</div>
     <div class="row"><button id="playBtn" class="main">▶ 播放</button></div>
     <div id="barBg"><div id="barFill"></div></div>
-    <div id="timeText" class="sub">0:00 / 0:00</div>
-    <div class="row row3">
-      <button id="volMinus">音量 −</button>
-      <button id="volPlus">音量 +</button>
-      <button id="modeBtn" class="last">模式:顺序</button>
-    </div>
-    <div class="row row3">
-      <button id="spdBtn" style="width:48%">倍速:1</button>
-      <button id="volBtn" class="last" style="width:50%">音量 --</button>
-    </div>
+    <div id="timeText" class="sub">0:00 / 0:00&nbsp;&nbsp;<span id="volBtn">音量 --</span></div>
+    <table class="ctrl"><tr>
+      <td><button id="volMinus">音量 −</button></td>
+      <td><button id="volPlus">音量 +</button></td>
+      <td><button id="modeBtn">模式:顺序</button></td>
+      <td><button id="spdBtn">倍速:1</button></td>
+    </tr></table>
   </div>
 
-  <div class="card">
+  <div class="card" id="plCard">
     <div style="font-weight:bold;margin-bottom:6px">歌单（点开 → 点歌推到音箱）</div>
     <div id="plList" class="sub">加载中…</div>
   </div>
 </div>
+</div><!-- /wrap -->
 
 <script>
 (function(){
